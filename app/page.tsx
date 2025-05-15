@@ -1,6 +1,29 @@
+"use client"
 import Image from "next/image";
+import { useEffect, useState } from 'react'
+import { useSocket } from './useSocket'
+
 
 export default function Home() {
+  const socketRef = useSocket()
+  const [message, setMessage] = useState('')
+  const [messages, setMessages] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!socketRef.current) return
+
+    socketRef.current.on('chat message', (msg: string) => {
+      setMessages((prev) => [...prev, msg])
+    })
+  }, [socketRef])
+
+  const sendMessage = () => {
+    if (socketRef.current && message.trim()) {
+      socketRef.current.emit('chat message', message)
+      setMessage('')
+    }
+  }
+
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
