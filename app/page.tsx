@@ -40,6 +40,32 @@ const DISASTER_TYPES: Record<string, DisasterType> = {
   BOTH: 'both'
 };
 
+// Fonction pour initialiser les états des arrondissements
+const initializeDistricts = (districtsList: District[]): District[] => {
+  return districtsList.map(district => {
+    const id = district.id;
+    let disaster: DisasterType = DISASTER_TYPES.NONE;
+
+    // Arrondissements 9 et 5 : uniquement séisme
+    if (id === 9 || id === 5) {
+      disaster = DISASTER_TYPES.SEISME;
+    }
+    // Arrondissements 4, 1 et 2 : séisme et inondation
+    else if (id === 4 || id === 1 || id === 2) {
+      disaster = DISASTER_TYPES.BOTH;
+    }
+    // Arrondissements 3, 6, 7, 8 : uniquement inondation
+    else if (id === 3 || id === 6 || id === 7 || id === 8) {
+      disaster = DISASTER_TYPES.INONDATION;
+    }
+
+    return {
+      ...district,
+      disaster
+    };
+  });
+};
+
 // Composant principal
 export default function Home() {
   const [districts, setDistricts] = useState<District[]>([]);
@@ -152,10 +178,13 @@ export default function Home() {
       
       districtsList.sort((a, b) => a.id - b.id);
       
-      setArrondissements(arrondData);
-      setDistricts(districtsList);
+      // Initialiser les états des arrondissements selon les spécifications
+      const initializedDistricts = initializeDistricts(districtsList);
       
-      createGeoLayers(mapInstance, arrondData, districtsList, L);
+      setArrondissements(arrondData);
+      setDistricts(initializedDistricts);
+      
+      createGeoLayers(mapInstance, arrondData, initializedDistricts, L);
       
       setLoading(false);
     } catch (err) {
@@ -284,37 +313,57 @@ export default function Home() {
     }
   };
 
+  // Fonction pour vérifier si un type de catastrophe est autorisé pour un arrondissement
+  const isDisasterAllowed = (districtId: number, disasterType: DisasterType): boolean => {
+    // Arrondissements 9 et 5 : uniquement séisme
+    if (districtId === 9 || districtId === 5) {
+      return disasterType === DISASTER_TYPES.SEISME;
+    }
+    // Arrondissements 4, 1 et 2 : séisme et inondation
+    else if (districtId === 4 || districtId === 1 || districtId === 2) {
+      return true; // Tous les types sont autorisés
+    }
+    // Arrondissements 3, 6, 7, 8 : uniquement inondation
+    else if (districtId === 3 || districtId === 6 || districtId === 7 || districtId === 8) {
+      return disasterType === DISASTER_TYPES.INONDATION;
+    }
+    return false;
+  };
+
   // Handlers pour les boutons
   const handleSetSeisme = () => {
     setDistricts(currentDistricts => {
       const randomIndex = Math.floor(Math.random() * currentDistricts.length);
-      return currentDistricts.map((district, idx) => 
-        idx === randomIndex 
-          ? { ...district, disaster: DISASTER_TYPES.SEISME } 
-          : district
-      );
+      return currentDistricts.map((district, idx) => {
+        if (idx === randomIndex && isDisasterAllowed(district.id, DISASTER_TYPES.SEISME)) {
+          return { ...district, disaster: DISASTER_TYPES.SEISME };
+        }
+        return district;
+      });
     });
   };
 
   const handleSetInondation = () => {
     setDistricts(currentDistricts => {
       const randomIndex = Math.floor(Math.random() * currentDistricts.length);
-      return currentDistricts.map((district, idx) => 
-        idx === randomIndex 
-          ? { ...district, disaster: DISASTER_TYPES.INONDATION } 
-          : district
-      );
+      return currentDistricts.map((district, idx) => {
+        if (idx === randomIndex && isDisasterAllowed(district.id, DISASTER_TYPES.INONDATION)) {
+          return { ...district, disaster: DISASTER_TYPES.INONDATION };
+        }
+        return district;
+      });
     });
   };
 
   const handleSetBoth = () => {
     setDistricts(currentDistricts => {
       const randomIndex = Math.floor(Math.random() * currentDistricts.length);
-      return currentDistricts.map((district, idx) => 
-        idx === randomIndex 
-          ? { ...district, disaster: DISASTER_TYPES.BOTH } 
-          : district
-      );
+      return currentDistricts.map((district, idx) => {
+        if (idx === randomIndex && isDisasterAllowed(district.id, DISASTER_TYPES.BOTH)) {
+          return { ...district, disaster: DISASTER_TYPES.BOTH };
+        }
+        return district;
+      });
     });
   };
 
@@ -327,20 +376,15 @@ export default function Home() {
   const handleRandom = () => {
     setDistricts(currentDistricts => {
       return currentDistricts.map(district => {
-        const randomValue = Math.random();
-        let disaster: DisasterType;
-        
-        if (randomValue < 0.5) {
-          disaster = DISASTER_TYPES.NONE;
-        } else if (randomValue < 0.7) {
-          disaster = DISASTER_TYPES.SEISME;
-        } else if (randomValue < 0.9) {
-          disaster = DISASTER_TYPES.INONDATION;
-        } else {
-          disaster = DISASTER_TYPES.BOTH;
-        }
-        
-        return { ...district, disaster };
+        const disasterTypes: DisasterType[] = [
+          DISASTER_TYPES.NONE,
+          DISASTER_TYPES.SEISME,
+          DISASTER_TYPES.INONDATION,
+          DISASTER_TYPES.BOTH
+        ].filter(type => isDisasterAllowed(district.id, type));
+
+        const randomDisaster = disasterTypes[Math.floor(Math.random() * disasterTypes.length)];
+        return { ...district, disaster: randomDisaster };
       });
     });
   };
