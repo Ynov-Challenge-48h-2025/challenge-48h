@@ -1,6 +1,5 @@
-import type { GeoJSON, Path } from 'leaflet';
+import type { GeoJSON, Path } from "leaflet";
 
-export type DisasterType = 'none' | 'seisme' | 'inondation' | 'both';
 export type Disaster = "earthquake" | "flood" | "none";
 
 export interface ZoneData {
@@ -20,7 +19,7 @@ export interface ZoneData {
 export interface District {
   id: number;
   name: string;
-  disaster: DisasterType;
+  disaster: Disaster;
   zone: number;
 }
 
@@ -39,27 +38,26 @@ export interface GeoJSONData {
   }>;
 }
 
-export const DISASTER_TYPES: Record<string, DisasterType> = {
-  NONE: 'none',
-  SEISME: 'seisme',
-  INONDATION: 'inondation',
-  BOTH: 'both'
+export const DISASTER_TYPES = {
+  NONE: "none",
+  SEISME: "seisme",
+  INONDATION: "inondation",
 };
 
 export const ZONE_CONFIG = {
   2: {
     name: "Zone 2",
     arrondissements: [9, 5],
-    disaster: DISASTER_TYPES.NONE
+    disaster: DISASTER_TYPES.NONE,
   },
   3: {
     name: "Zone 3",
     arrondissements: [4, 1, 2],
-    disaster: DISASTER_TYPES.NONE
+    disaster: DISASTER_TYPES.NONE,
   },
   4: {
     name: "Zone 4",
     arrondissements: [3, 6, 7, 8],
-    disaster: DISASTER_TYPES.NONE
-  }
-}; 
+    disaster: DISASTER_TYPES.NONE,
+  },
+};

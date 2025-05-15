@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import 'leaflet/dist/leaflet.css';
+import "leaflet/dist/leaflet.css";
 
 const jetBrains = JetBrains_Mono({
   subsets: ["latin"],
-  display: 'swap',
-  weight: ['400', '700'],
+  display: "swap",
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -21,9 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={jetBrains.className}>
-        {children}
-      </body>
+      <body className={jetBrains.className}>{children}</body>
     </html>
   );
 }
