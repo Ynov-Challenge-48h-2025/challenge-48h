@@ -1,13 +1,13 @@
 // Seuils pour déclencher les catastrophes
 const THRESHOLDS = {
   earthquake: {
-    seismicity: 0.6, // Seuil de sismicité pour déclencher un séisme
-    gas_concentration: 120 // Seuil de concentration de gaz pour aggraver le risque
+    seismicity: 0.4, // Augmenté le seuil de sismicité
+    gas_concentration: 90 // Augmenté le seuil de concentration de gaz
   },
   flood: {
-    total_rain: 40, // Seuil de pluie totale en mm
-    max_rain_intensity: 12, // Seuil d'intensité maximale de pluie en mm/h
-    humidity: 75 // Seuil d'humidité en %
+    total_rain: 45, // Augmenté le seuil de pluie totale
+    max_rain_intensity: 15, // Augmenté le seuil d'intensité maximale de pluie
+    humidity: 60 // Augmenté le seuil d'humidité
   }
 };
 
@@ -19,29 +19,29 @@ const BASE_DATA = {
     average_wind_speed: 5,
     max_wind_speed: 8,
     max_rain_intensity: 8,
-    total_rain: 20,
-    seismicity: 0.5,
-    gas_concentration: 90
+    total_rain: 35,
+    seismicity: 0.6, 
+    gas_concentration: 100
   },
   "Zone 3": {
     temperature: 23,
-    humidity: 80, // Augmenté pour garantir l'inondation
+    humidity: 75,
     average_wind_speed: 6,
     max_wind_speed: 9,
-    max_rain_intensity: 15, // Augmenté pour garantir l'inondation
-    total_rain: 45, // Augmenté pour garantir l'inondation
-    seismicity: 0.7, // Augmenté pour garantir le séisme
-    gas_concentration: 130 // Augmenté pour garantir le séisme
+    max_rain_intensity: 13, 
+    total_rain: 50,
+    seismicity: 0.6, 
+    gas_concentration: 120
   },
   "Zone 4": {
     temperature: 21,
     humidity: 70,
     average_wind_speed: 4,
     max_wind_speed: 7,
-    max_rain_intensity: 10,
-    total_rain: 35,
-    seismicity: 0.3,
-    gas_concentration: 90
+    max_rain_intensity: 20,
+    total_rain: 60,
+    seismicity: 0.5,
+    gas_concentration: 100
   }
 };
 
@@ -60,9 +60,9 @@ const randomVariation = (base, maxVariation) => {
 const determineDisasters = (data) => {
   const zone = data.district;
   
-  // Zone 2 : uniquement séisme
+  // Zone 2 : séisme seulement si les seuils sont dépassés
   if (zone === "Zone 2") {
-    if (data.seismicity >= THRESHOLDS.earthquake.seismicity || 
+    if (data.seismicity >= THRESHOLDS.earthquake.seismicity && 
         data.gas_concentration >= THRESHOLDS.earthquake.gas_concentration) {
       return "earthquake";
     }
@@ -79,9 +79,22 @@ const determineDisasters = (data) => {
     return "none";
   }
   
-  // Zone 3 : toujours les deux catastrophes
+  // Zone 3 : séisme et inondation seulement si les seuils sont dépassés
   if (zone === "Zone 3") {
-    return ["earthquake", "flood"];
+    const disasters = [];
+    
+    if (data.seismicity >= THRESHOLDS.earthquake.seismicity || 
+        data.gas_concentration >= THRESHOLDS.earthquake.gas_concentration) {
+      disasters.push("earthquake");
+    }
+    
+    if (data.total_rain >= THRESHOLDS.flood.total_rain ||
+        data.max_rain_intensity >= THRESHOLDS.flood.max_rain_intensity ||
+        data.humidity >= THRESHOLDS.flood.humidity) {
+      disasters.push("flood");
+    }
+    
+    return disasters.length > 0 ? disasters : "none";
   }
   
   return "none";
@@ -96,14 +109,14 @@ export const generateNewData = () => {
     const updatedData = {
       date,
       district: zone,
-      temperature: roundToTenth(randomVariation(baseData.temperature, 5)),
-      humidity: roundToTenth(randomVariation(baseData.humidity, 15)),
-      average_wind_speed: roundToTenth(randomVariation(baseData.average_wind_speed, 3)),
-      max_wind_speed: roundToTenth(randomVariation(baseData.max_wind_speed, 5)),
-      max_rain_intensity: roundToTenth(randomVariation(baseData.max_rain_intensity, 8)),
-      total_rain: roundToTenth(randomVariation(baseData.total_rain, 20)),
-      seismicity: roundToTenth(randomVariation(baseData.seismicity, 0.6)), // Augmenté la variation de 0.4 à 0.6
-      gas_concentration: roundToTenth(randomVariation(baseData.gas_concentration, 40))
+      temperature: roundToTenth(randomVariation(baseData.temperature, 8)),
+      humidity: roundToTenth(randomVariation(baseData.humidity, 25)),
+      average_wind_speed: roundToTenth(randomVariation(baseData.average_wind_speed, 5)),
+      max_wind_speed: roundToTenth(randomVariation(baseData.max_wind_speed, 8)),
+      max_rain_intensity: roundToTenth(randomVariation(baseData.max_rain_intensity, 15)),
+      total_rain: roundToTenth(randomVariation(baseData.total_rain, 30)),
+      seismicity: roundToTenth(randomVariation(baseData.seismicity, 0.8)),
+      gas_concentration: roundToTenth(randomVariation(baseData.gas_concentration, 60))
     };
 
     // Déterminer les catastrophes en fonction des nouvelles données
