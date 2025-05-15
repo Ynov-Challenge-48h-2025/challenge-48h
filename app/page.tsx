@@ -1,10 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Waves, Dices, AlertTriangle } from 'lucide-react';
+import { MapPin, Waves, Dices, AlertTriangle, Plus, Minus, Thermometer, Droplets, Wind, CloudRain, Activity, Flame } from 'lucide-react';
 import type { Map as LeafletMap, GeoJSON, Path, GeoJSON as LeafletGeoJSON } from 'leaflet';
+import { startDataSimulation } from './data';
 
 type DisasterType = 'none' | 'seisme' | 'inondation' | 'both';
+type Disaster = "earthquake" | "flood" | "none";
+
+interface ZoneData {
+  date: string;
+  district: "Zone 2" | "Zone 3" | "Zone 4";
+  temperature: number;
+  humidity: number;
+  average_wind_speed: number;
+  max_wind_speed: number;
+  max_rain_intensity: number;
+  total_rain: number;
+  seismicity: number;
+  gas_concentration: number;
+  disaster: Disaster | Disaster[];
+}
 
 interface District {
   id: number;
@@ -66,6 +82,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [map, setMap] = useState<LeafletMap | null>(null);
   const [arrondissements, setArrondissements] = useState<Record<number, ArrondissementData>>({});
+  const [zoneData, setZoneData] = useState<Record<string, ZoneData>>({});
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -205,7 +222,7 @@ export default function Home() {
       const district = districts.find(d => d.id === parseInt(arrondNumber, 10));
       const feature = arrondData[arrondNumber].feature;
       
-      const style = getLeafletStyle(district?.disaster || DISASTER_TYPES.NONE);
+      const style = getLeafletStyle(district?.disaster || DISASTER_TYPES.NONE, district?.zone || 0);
       
       const layer = L.geoJSON(feature, {
         style: style,
@@ -225,7 +242,7 @@ export default function Home() {
             mouseout: (e: { target: LeafletGeoJSON }) => {
               const layer = e.target;
               const district = districts.find(d => d.id === parseInt(arrondNumber, 10));
-              const style = getLeafletStyle(district?.disaster || DISASTER_TYPES.NONE);
+              const style = getLeafletStyle(district?.disaster || DISASTER_TYPES.NONE, district?.zone || 0);
               layer.setStyle(style);
             },
             click: (e: { target: LeafletGeoJSON }) => {
@@ -258,13 +275,13 @@ export default function Home() {
     districts.forEach(district => {
       const arrondData = arrondissements[district.id];
       if (arrondData && arrondData.layer) {
-        arrondData.layer.setStyle(getLeafletStyle(district.disaster));
+        arrondData.layer.setStyle(getLeafletStyle(district.disaster, district.zone));
       }
     });
   }, [districts, arrondissements, mapReady, map]);
 
   // Obtenir le style Leaflet en fonction du type de catastrophe
-  const getLeafletStyle = (disasterType: DisasterType) => {
+  const getLeafletStyle = (disasterType: DisasterType, zoneId: number) => {
     const baseStyle = {
       weight: 2,
       opacity: 0.7,
@@ -273,13 +290,19 @@ export default function Home() {
       fillOpacity: 0.7
     };
     
-    switch (disasterType) {
-      case DISASTER_TYPES.SEISME:
-        return { ...baseStyle, fillColor: '#f97316', color: '#f97316' };
-      case DISASTER_TYPES.INONDATION:
-        return { ...baseStyle, fillColor: '#3b82f6', color: '#3b82f6' };
-      case DISASTER_TYPES.BOTH:
-        return { ...baseStyle, fillColor: '#22c55e', color: '#22c55e' };
+    // Si pas de catastrophe, zone grise
+    if (disasterType === DISASTER_TYPES.NONE) {
+      return { ...baseStyle, fillColor: '#374151', color: '#6b7280' };
+    }
+    
+    // Couleurs par zone uniquement quand il y a une catastrophe
+    switch (zoneId) {
+      case 2:
+        return { ...baseStyle, fillColor: '#f97316', color: '#f97316' }; // Orange pour Zone 2
+      case 3:
+        return { ...baseStyle, fillColor: '#22c55e', color: '#22c55e' }; // Vert pour Zone 3
+      case 4:
+        return { ...baseStyle, fillColor: '#3b82f6', color: '#3b82f6' }; // Bleu pour Zone 4
       default:
         return { ...baseStyle, fillColor: '#374151', color: '#6b7280' };
     }
@@ -312,6 +335,64 @@ export default function Home() {
         return 'Aucun incident';
     }
   };
+
+  // Fonction pour convertir les données de catastrophe
+  const convertDisasterType = (disaster: Disaster | Disaster[]): DisasterType => {
+    if (disaster === "none") return DISASTER_TYPES.NONE;
+    
+    if (Array.isArray(disaster)) {
+      // Si c'est un tableau, on vérifie si les deux types sont présents
+      const hasEarthquake = disaster.includes("earthquake");
+      const hasFlood = disaster.includes("flood");
+      
+      if (hasEarthquake && hasFlood) {
+        return DISASTER_TYPES.BOTH;
+      } else if (hasEarthquake) {
+        return DISASTER_TYPES.SEISME;
+      } else if (hasFlood) {
+        return DISASTER_TYPES.INONDATION;
+      }
+    } else {
+      // Si c'est une seule catastrophe
+      if (disaster === "earthquake") return DISASTER_TYPES.SEISME;
+      if (disaster === "flood") return DISASTER_TYPES.INONDATION;
+    }
+    
+    return DISASTER_TYPES.NONE;
+  };
+
+  // Fonction pour mettre à jour les districts en fonction des données de zone
+  const updateDistrictsFromZoneData = (data: ZoneData) => {
+    setDistricts(currentDistricts => {
+      return currentDistricts.map(district => {
+        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
+          config.arrondissements.includes(district.id)
+        )?.[0];
+        
+        if (zone && data.district === `Zone ${zone}`) {
+          const disasterType = convertDisasterType(data.disaster);
+          console.log(`Zone ${zone} - Disaster: ${data.disaster} -> ${disasterType}`); // Debug
+          return { ...district, disaster: disasterType };
+        }
+        return district;
+      });
+    });
+  };
+
+  // Démarrer la simulation de données
+  useEffect(() => {
+    const intervalId = startDataSimulation((newData: Record<string, ZoneData>) => {
+      setZoneData(newData);
+      
+      // Mettre à jour les districts en fonction des nouvelles données
+      Object.values(newData).forEach((data: ZoneData) => {
+        updateDistrictsFromZoneData(data);
+      });
+    }, 1000); // Mise à jour toutes les 5 secondes
+
+    // Nettoyage lors du démontage du composant
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Handlers pour les boutons
   const handleSetSeisme = () => {
@@ -450,7 +531,7 @@ export default function Home() {
       {/* Dashboard principal */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Carte des arrondissements */}
-        <div className="col-span-2 bg-gray-900 rounded-lg p-4 h-96">
+        <div className="col-span-2 bg-gray-900 rounded-lg p-4 ">
           <h2 className="text-lg font-semibold mb-2">Carte des Arrondissements</h2>
           <div className="border border-gray-700 rounded-lg h-80 relative">
             <div 
@@ -458,17 +539,34 @@ export default function Home() {
               className="h-full w-full rounded-lg"
               style={{ background: '#111' }}
             ></div>
+            {/* Boutons de zoom */}
+            <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+              <button
+                onClick={() => map?.zoomIn()}
+                className="w-6 h-6 bg-white hover:bg-gray-100 rounded-md flex items-center justify-center text-gray-800 shadow-lg border border-gray-200"
+                title="Zoomer"
+              >
+                <Plus size={20} />
+              </button>
+              <button
+                onClick={() => map?.zoomOut()}
+                className="w-6 h-6 bg-white hover:bg-gray-100 rounded-md flex items-center justify-center text-gray-800 shadow-lg border border-gray-200"
+                title="Dézoomer"
+              >
+                <Minus size={20} />
+              </button>
+            </div>
           </div>
         </div>
         
         {/* Panneau latéral d'informations */}
-        <div className="bg-gray-900 rounded-lg p-4 h-96 overflow-y-auto">
+        <div className="bg-gray-900 rounded-lg p-4 overflow-y-auto">
           <h2 className="text-lg font-semibold mb-2">Statut des Zones</h2>
           <div className="space-y-4">
             {Object.entries(ZONE_CONFIG).map(([zoneId, config]) => {
-              // Trouver le premier district de la zone pour obtenir son état actuel
               const firstDistrictInZone = districts.find(d => config.arrondissements.includes(d.id));
               const currentDisaster = firstDistrictInZone?.disaster || DISASTER_TYPES.NONE;
+              const currentZoneData = Object.values(zoneData).find(d => d.district === `Zone ${zoneId}`);
 
               return (
                 <div key={zoneId} className="p-3 bg-gray-800 rounded-md">
@@ -482,6 +580,34 @@ export default function Home() {
                   <div className="text-sm mt-1">
                     {getDisasterText(currentDisaster)}
                   </div>
+                  {currentZoneData && (
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-1">
+                        <Thermometer size={16} className="text-orange-500" />
+                        <span>{currentZoneData.temperature}°C</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Droplets size={16} className="text-blue-500" />
+                        <span>{currentZoneData.humidity}%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Wind size={16} className="text-gray-400" />
+                        <span>{currentZoneData.average_wind_speed} m/s</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <CloudRain size={16} className="text-blue-400" />
+                        <span>{currentZoneData.total_rain} mm</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Activity size={16} className="text-red-500" />
+                        <span>{(currentZoneData.seismicity * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Flame size={16} className="text-yellow-500" />
+                        <span>{currentZoneData.gas_concentration} ppm</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
