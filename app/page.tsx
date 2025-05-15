@@ -10,6 +10,7 @@ interface District {
   id: number;
   name: string;
   disaster: DisasterType;
+  zone: number;
 }
 
 interface ArrondissementData {
@@ -38,6 +39,24 @@ const DISASTER_TYPES: Record<string, DisasterType> = {
   SEISME: 'seisme',
   INONDATION: 'inondation',
   BOTH: 'both'
+};
+
+const ZONE_CONFIG = {
+  2: {
+    name: "Zone 2",
+    arrondissements: [9, 5],
+    disaster: DISASTER_TYPES.NONE
+  },
+  3: {
+    name: "Zone 3",
+    arrondissements: [4, 1, 2],
+    disaster: DISASTER_TYPES.NONE
+  },
+  4: {
+    name: "Zone 4",
+    arrondissements: [3, 6, 7, 8],
+    disaster: DISASTER_TYPES.NONE
+  }
 };
 
 // Composant principal
@@ -78,14 +97,11 @@ export default function Home() {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           }).addTo(mapInstance);
           
-          // Désactiver le zoom par molette (optionnel)
           mapInstance.scrollWheelZoom.disable();
           
-          // Sauvegarder l'instance de carte
           setMap(mapInstance);
           setMapReady(true);
           
-          // Charger les données GeoJSON
           await fetchGeoData(mapInstance, L);
         }
       } catch (err) {
@@ -132,6 +148,18 @@ export default function Home() {
             const arrondNumber = parseInt(arrondMatch[1], 10);
             const arrondName = properties.nom;
             
+            // Déterminer la zone et le type de catastrophe
+            let zone = 0;
+            let disaster = DISASTER_TYPES.NONE;
+            
+            for (const [zoneId, config] of Object.entries(ZONE_CONFIG)) {
+              if (config.arrondissements.includes(arrondNumber)) {
+                zone = parseInt(zoneId);
+                disaster = config.disaster;
+                break;
+              }
+            }
+            
             arrondData[arrondNumber] = {
               feature: {
                 type: 'Feature',
@@ -144,7 +172,8 @@ export default function Home() {
             districtsList.push({
               id: arrondNumber,
               name: arrondName,
-              disaster: DISASTER_TYPES.NONE
+              disaster: disaster,
+              zone: zone
             });
           }
         }
@@ -287,60 +316,79 @@ export default function Home() {
   // Handlers pour les boutons
   const handleSetSeisme = () => {
     setDistricts(currentDistricts => {
-      const randomIndex = Math.floor(Math.random() * currentDistricts.length);
-      return currentDistricts.map((district, idx) => 
-        idx === randomIndex 
-          ? { ...district, disaster: DISASTER_TYPES.SEISME } 
-          : district
-      );
+      return currentDistricts.map(district => {
+        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
+          config.arrondissements.includes(district.id)
+        )?.[0];
+        
+        if (zone === '2') {
+          return { ...district, disaster: DISASTER_TYPES.SEISME };
+        }
+        return district;
+      });
     });
   };
 
   const handleSetInondation = () => {
     setDistricts(currentDistricts => {
-      const randomIndex = Math.floor(Math.random() * currentDistricts.length);
-      return currentDistricts.map((district, idx) => 
-        idx === randomIndex 
-          ? { ...district, disaster: DISASTER_TYPES.INONDATION } 
-          : district
-      );
+      return currentDistricts.map(district => {
+        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
+          config.arrondissements.includes(district.id)
+        )?.[0];
+        
+        if (zone === '4') {
+          return { ...district, disaster: DISASTER_TYPES.INONDATION };
+        }
+        return district;
+      });
     });
   };
 
   const handleSetBoth = () => {
     setDistricts(currentDistricts => {
-      const randomIndex = Math.floor(Math.random() * currentDistricts.length);
-      return currentDistricts.map((district, idx) => 
-        idx === randomIndex 
-          ? { ...district, disaster: DISASTER_TYPES.BOTH } 
-          : district
-      );
+      return currentDistricts.map(district => {
+        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
+          config.arrondissements.includes(district.id)
+        )?.[0];
+        
+        if (zone === '3') {
+          return { ...district, disaster: DISASTER_TYPES.BOTH };
+        }
+        return district;
+      });
     });
   };
 
   const handleReset = () => {
-    setDistricts(currentDistricts => 
-      currentDistricts.map(district => ({ ...district, disaster: DISASTER_TYPES.NONE }))
-    );
+    setDistricts(currentDistricts => {
+      return currentDistricts.map(district => {
+        return { ...district, disaster: DISASTER_TYPES.NONE };
+      });
+    });
   };
 
   const handleRandom = () => {
     setDistricts(currentDistricts => {
       return currentDistricts.map(district => {
-        const randomValue = Math.random();
-        let disaster: DisasterType;
+        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
+          config.arrondissements.includes(district.id)
+        )?.[0];
         
-        if (randomValue < 0.5) {
-          disaster = DISASTER_TYPES.NONE;
-        } else if (randomValue < 0.7) {
-          disaster = DISASTER_TYPES.SEISME;
-        } else if (randomValue < 0.9) {
-          disaster = DISASTER_TYPES.INONDATION;
-        } else {
-          disaster = DISASTER_TYPES.BOTH;
+        if (zone) {
+          const randomValue = Math.random();
+          const zoneNumber = parseInt(zone);
+          
+          if (randomValue < 0.3) {
+            return { ...district, disaster: DISASTER_TYPES.NONE };
+          } else if (zoneNumber === 2) {
+            return { ...district, disaster: DISASTER_TYPES.SEISME };
+          } else if (zoneNumber === 3) {
+            return { ...district, disaster: DISASTER_TYPES.BOTH };
+          } else if (zoneNumber === 4) {
+            return { ...district, disaster: DISASTER_TYPES.INONDATION };
+          }
         }
-        
-        return { ...district, disaster };
+        return district;
       });
     });
   };
@@ -415,42 +463,53 @@ export default function Home() {
         
         {/* Panneau latéral d'informations */}
         <div className="bg-gray-900 rounded-lg p-4 h-96 overflow-y-auto">
-          <h2 className="text-lg font-semibold mb-2">Statut des Arrondissements</h2>
-          <div className="space-y-2">
-            {districts.map((district) => (
-              <div key={district.id} className="p-2 bg-gray-800 rounded-md flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-2 ${getDisasterColor(district.disaster)}`}></div>
-                <span className="flex-1">{district.name}</span>
-                <span className="text-sm">
-                  {getDisasterText(district.disaster)}
-                </span>
-              </div>
-            ))}
+          <h2 className="text-lg font-semibold mb-2">Statut des Zones</h2>
+          <div className="space-y-4">
+            {Object.entries(ZONE_CONFIG).map(([zoneId, config]) => {
+              // Trouver le premier district de la zone pour obtenir son état actuel
+              const firstDistrictInZone = districts.find(d => config.arrondissements.includes(d.id));
+              const currentDisaster = firstDistrictInZone?.disaster || DISASTER_TYPES.NONE;
+
+              return (
+                <div key={zoneId} className="p-3 bg-gray-800 rounded-md">
+                  <div className="flex items-center mb-2">
+                    <div className={`w-3 h-3 rounded-full mr-2 ${getDisasterColor(currentDisaster)}`}></div>
+                    <span className="font-semibold">{config.name}</span>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    Arrondissements : {config.arrondissements.join(', ')}
+                  </div>
+                  <div className="text-sm mt-1">
+                    {getDisasterText(currentDisaster)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
       
       {/* Simulateur de catastrophes */}
       <div className="mt-6 p-4 bg-gray-900 rounded-lg">
-        <h2 className="text-lg font-semibold mb-2">Simulateur d'événements</h2>
+        <h2 className="text-lg font-semibold mb-2">Simulateur d&apos;événements</h2>
         <div className="flex flex-wrap gap-2">
           <button 
             className="px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-md flex items-center gap-1" 
             onClick={handleSetSeisme}
           >
-            <MapPin size={16} /> Séisme
+            <MapPin size={16} /> Séisme (Zone 2)
           </button>
           <button 
             className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-md flex items-center gap-1"
             onClick={handleSetInondation}
           >
-            <Waves size={16} /> Inondation
+            <Waves size={16} /> Inondation (Zone 4)
           </button>
           <button 
             className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-md flex items-center gap-1"
             onClick={handleSetBoth}
           >
-            <MapPin size={16} /> <Waves size={16} /> Les deux
+            <MapPin size={16} /> <Waves size={16} /> Les deux (Zone 3)
           </button>
           <button 
             className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md flex items-center gap-1"
@@ -498,7 +557,6 @@ export default function Home() {
         </div>
       </div>
       
-     
     </div>
   );
 }
