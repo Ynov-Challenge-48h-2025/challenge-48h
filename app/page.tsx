@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Waves, Dices, AlertTriangle, Plus, Minus, Thermometer, Droplets, Wind, CloudRain, Activity, Flame } from 'lucide-react';
+import { AlertTriangle, Plus, Minus, Thermometer, Droplets, Wind, CloudRain, Activity, Flame } from 'lucide-react';
 import type { Map as LeafletMap, GeoJSON, Path, GeoJSON as LeafletGeoJSON } from 'leaflet';
 import { startDataSimulation } from './data';
 
@@ -394,86 +394,6 @@ export default function Home() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // Handlers pour les boutons
-  const handleSetSeisme = () => {
-    setDistricts(currentDistricts => {
-      return currentDistricts.map(district => {
-        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
-          config.arrondissements.includes(district.id)
-        )?.[0];
-        
-        if (zone === '2') {
-          return { ...district, disaster: DISASTER_TYPES.SEISME };
-        }
-        return district;
-      });
-    });
-  };
-
-  const handleSetInondation = () => {
-    setDistricts(currentDistricts => {
-      return currentDistricts.map(district => {
-        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
-          config.arrondissements.includes(district.id)
-        )?.[0];
-        
-        if (zone === '4') {
-          return { ...district, disaster: DISASTER_TYPES.INONDATION };
-        }
-        return district;
-      });
-    });
-  };
-
-  const handleSetBoth = () => {
-    setDistricts(currentDistricts => {
-      return currentDistricts.map(district => {
-        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
-          config.arrondissements.includes(district.id)
-        )?.[0];
-        
-        if (zone === '3') {
-          return { ...district, disaster: DISASTER_TYPES.BOTH };
-        }
-        return district;
-      });
-    });
-  };
-
-  const handleReset = () => {
-    setDistricts(currentDistricts => {
-      return currentDistricts.map(district => {
-        return { ...district, disaster: DISASTER_TYPES.NONE };
-      });
-    });
-  };
-
-  const handleRandom = () => {
-    setDistricts(currentDistricts => {
-      return currentDistricts.map(district => {
-        const zone = Object.entries(ZONE_CONFIG).find(([, config]) => 
-          config.arrondissements.includes(district.id)
-        )?.[0];
-        
-        if (zone) {
-          const randomValue = Math.random();
-          const zoneNumber = parseInt(zone);
-          
-          if (randomValue < 0.3) {
-            return { ...district, disaster: DISASTER_TYPES.NONE };
-          } else if (zoneNumber === 2) {
-            return { ...district, disaster: DISASTER_TYPES.SEISME };
-          } else if (zoneNumber === 3) {
-            return { ...district, disaster: DISASTER_TYPES.BOTH };
-          } else if (zoneNumber === 4) {
-            return { ...district, disaster: DISASTER_TYPES.INONDATION };
-          }
-        }
-        return district;
-      });
-    });
-  };
-
   // Affichage d'erreur
   if (error) {
     return (
@@ -502,187 +422,104 @@ export default function Home() {
 
   // Rendu principal
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <h1 className="text-2xl font-bold mb-6">Monitoring des Catastrophes Naturelles à Lyon</h1>
-      
-      {/* Légende */}
-      <div className="mb-6 p-4 bg-gray-900 rounded-lg">
-        <h2 className="text-lg font-semibold mb-2">Légende</h2>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-orange-500 rounded"></div>
-            <span>Séisme</span>
+    <div className="min-h-screen bg-black text-white flex flex-col">
+      {/* Statistiques en haut */}
+      <div className="flex justify-between items-center px-12 pt-8 pb-4">
+        <div className="flex gap-12">
+          <div>
+            <div className="text-xs text-gray-400">Arrondissements affectés</div>
+            <div className="text-2xl font-bold">{affectedCount}/{districts.length}</div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span>Inondation</span>
+          <div>
+            <div className="text-xs text-gray-400">Séismes actifs</div>
+            <div className="text-2xl font-bold text-orange-500">{seismeCount}</div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <span>Séisme & Inondation</span>
+          <div>
+            <div className="text-xs text-gray-400">Inondations actives</div>
+            <div className="text-2xl font-bold text-blue-500">{inondationCount}</div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gray-700 rounded"></div>
-            <span>Aucun incident</span>
+          <div>
+            <div className="text-xs text-gray-400">Dernière mis à jour</div>
+            <div className="text-xl font-bold">{new Date().toLocaleTimeString()}</div>
           </div>
         </div>
       </div>
-      
-      {/* Dashboard principal */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Carte des arrondissements */}
-        <div className="col-span-2 bg-gray-900 rounded-lg p-4 ">
-          <h2 className="text-lg font-semibold mb-2">Carte des Arrondissements</h2>
-          <div className="border border-gray-700 rounded-lg h-80 relative">
-            <div 
-              id="map" 
-              className="h-full w-full rounded-lg"
-              style={{ background: '#111' }}
-            ></div>
-            {/* Boutons de zoom */}
-            <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-              <button
-                onClick={() => map?.zoomIn()}
-                className="w-6 h-6 bg-white hover:bg-gray-100 rounded-md flex items-center justify-center text-gray-800 shadow-lg border border-gray-200"
-                title="Zoomer"
-              >
-                <Plus size={20} />
-              </button>
-              <button
-                onClick={() => map?.zoomOut()}
-                className="w-6 h-6 bg-white hover:bg-gray-100 rounded-md flex items-center justify-center text-gray-800 shadow-lg border border-gray-200"
-                title="Dézoomer"
-              >
-                <Minus size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Panneau latéral d'informations */}
-        <div className="bg-gray-900 rounded-lg p-4 overflow-y-auto">
-          <h2 className="text-lg font-semibold mb-2">Statut des Zones</h2>
-          <div className="space-y-4">
-            {Object.entries(ZONE_CONFIG).map(([zoneId, config]) => {
-              const firstDistrictInZone = districts.find(d => config.arrondissements.includes(d.id));
-              const currentDisaster = firstDistrictInZone?.disaster || DISASTER_TYPES.NONE;
-              const currentZoneData = Object.values(zoneData).find(d => d.district === `Zone ${zoneId}`);
 
-              return (
-                <div key={zoneId} className="p-3 bg-gray-800 rounded-md">
-                  <div className="flex items-center mb-2">
-                    <div className={`w-3 h-3 rounded-full mr-2 ${getDisasterColor(currentDisaster)}`}></div>
-                    <span className="font-semibold">{config.name}</span>
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    Arrondissements : {config.arrondissements.join(', ')}
-                  </div>
-                  <div className="text-sm mt-1">
-                    {getDisasterText(currentDisaster)}
-                  </div>
-                  {currentZoneData && (
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Thermometer size={16} className="text-orange-500" />
-                        <span>{currentZoneData.temperature}°C</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Droplets size={16} className="text-blue-500" />
-                        <span>{currentZoneData.humidity}%</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Wind size={16} className="text-gray-400" />
-                        <span>{currentZoneData.average_wind_speed} m/s</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <CloudRain size={16} className="text-blue-400" />
-                        <span>{currentZoneData.total_rain} mm</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Activity size={16} className="text-red-500" />
-                        <span>{(currentZoneData.seismicity * 100).toFixed(1)}%</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Flame size={16} className="text-yellow-500" />
-                        <span>{currentZoneData.gas_concentration} ppm</span>
-                      </div>
-                    </div>
-                  )}
+      {/* Contenu principal : carte + panneau latéral */}
+      <div className="flex flex-1 w-full px-12 pb-8 gap-8">
+        {/* Carte centrée */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="bg-gray-900 rounded-2xl border border-gray-700 shadow-lg p-0 overflow-hidden" style={{width: 700, height: 500}}>
+            <div className="relative w-full h-full">
+              <div 
+                id="map" 
+                className="h-full w-full rounded-2xl"
+                style={{ background: '#111' }}
+              ></div>
+              {/* Boutons de zoom */}
+              <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+                <button
+                  onClick={() => map?.zoomIn()}
+                  className="w-6 h-6 bg-white hover:bg-gray-100 rounded-md flex items-center justify-center text-gray-800 shadow-lg border border-gray-200"
+                  title="Zoomer"
+                >
+                  <Plus size={20} />
+                </button>
+                <button
+                  onClick={() => map?.zoomOut()}
+                  className="w-6 h-6 bg-white hover:bg-gray-100 rounded-md flex items-center justify-center text-gray-800 shadow-lg border border-gray-200"
+                  title="Dézoomer"
+                >
+                  <Minus size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Panneau latéral */}
+        <div className="w-64 flex flex-col gap-4">
+          {Object.entries(ZONE_CONFIG).map(([zoneId, config]) => {
+            const firstDistrictInZone = districts.find(d => config.arrondissements.includes(d.id));
+            const currentDisaster = firstDistrictInZone?.disaster || DISASTER_TYPES.NONE;
+            const currentZoneData = Object.values(zoneData).find(d => d.district === `Zone ${zoneId}`);
+            return (
+              <div key={zoneId} className="bg-gray-900 rounded-lg p-4 flex flex-col gap-1 border border-gray-700">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className={`w-3 h-3 rounded-full ${getDisasterColor(currentDisaster)}`}></div>
+                  <span className="font-bold text-lg">Zone {zoneId}</span>
                 </div>
-              );
-            })}
-          </div>
+                <div className="text-xs text-gray-400 mb-1">Arrondissements : {config.arrondissements.join(', ')}</div>
+                <div className="text-sm mb-1">{getDisasterText(currentDisaster)}</div>
+                {currentZoneData && (
+                  <div className="mt-1 grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1"><Thermometer size={14} className="text-orange-500" /><span>{currentZoneData.temperature}°C</span></div>
+                    <div className="flex items-center gap-1"><Droplets size={14} className="text-blue-500" /><span>{currentZoneData.humidity}%</span></div>
+                    <div className="flex items-center gap-1"><Wind size={14} className="text-gray-400" /><span>{currentZoneData.average_wind_speed} m/s</span></div>
+                    <div className="flex items-center gap-1"><CloudRain size={14} className="text-blue-400" /><span>{currentZoneData.total_rain} mm</span></div>
+                    <div className="flex items-center gap-1"><Activity size={14} className="text-red-500" /><span>{(currentZoneData.seismicity * 100).toFixed(1)}%</span></div>
+                    <div className="flex items-center gap-1"><Flame size={14} className="text-yellow-500" /><span>{currentZoneData.gas_concentration} ppm</span></div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
-      
-      {/* Simulateur de catastrophes */}
-      <div className="mt-6 p-4 bg-gray-900 rounded-lg">
-        <h2 className="text-lg font-semibold mb-2">Simulateur d&apos;événements</h2>
-        <div className="flex flex-wrap gap-2">
-          <button 
-            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-md flex items-center gap-1" 
-            onClick={handleSetSeisme}
-          >
-            <MapPin size={16} /> Séisme (Zone 2)
-          </button>
-          <button 
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-md flex items-center gap-1"
-            onClick={handleSetInondation}
-          >
-            <Waves size={16} /> Inondation (Zone 4)
-          </button>
-          <button 
-            className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-md flex items-center gap-1"
-            onClick={handleSetBoth}
-          >
-            <MapPin size={16} /> <Waves size={16} /> Les deux (Zone 3)
-          </button>
-          <button 
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-md flex items-center gap-1"
-            onClick={handleReset}
-          >
-            Réinitialiser
-          </button>
-          <button 
-            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 rounded-md flex items-center gap-1"
-            onClick={handleRandom}
-          >
-            <Dices size={16} /> Aléatoire
-          </button>
+
+      {/* Chat en bas à droite
+      <div className="fixed bottom-8 right-8 w-96 bg-gray-800 rounded-xl p-4 text-white shadow-lg border border-gray-700">
+        <div className="mb-2">
+          <span className="font-bold">John :</span> vous avez vu !!
         </div>
-      </div>
-      
-      {/* Statistiques */}
-      <div className="mt-6 p-4 bg-gray-900 rounded-lg">
-        <h2 className="text-lg font-semibold mb-2">Statistiques</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-gray-800 p-3 rounded-lg">
-            <div className="text-sm text-gray-400">Arrondissements affectés</div>
-            <div className="text-2xl font-bold">
-              {affectedCount}/{districts.length}
-            </div>
-          </div>
-          <div className="bg-gray-800 p-3 rounded-lg">
-            <div className="text-sm text-gray-400">Séismes actifs</div>
-            <div className="text-2xl font-bold text-orange-500">
-              {seismeCount}
-            </div>
-          </div>
-          <div className="bg-gray-800 p-3 rounded-lg">
-            <div className="text-sm text-gray-400">Inondations actives</div>
-            <div className="text-2xl font-bold text-blue-500">
-              {inondationCount}
-            </div>
-          </div>
-          <div className="bg-gray-800 p-3 rounded-lg">
-            <div className="text-sm text-gray-400">Dernière mise à jour</div>
-            <div className="text-xl font-bold">
-              {new Date().toLocaleTimeString()}
-            </div>
-          </div>
+        <div>
+          <span className="font-bold">Doe :</span> OMG ma maison est parti en mille morceaux
         </div>
-      </div>
-      
+      </div> */}
+
+      {/* Onglet zone sélectionnée en bas à gauche */}
+      {/* <div className="fixed bottom-8 left-8 bg-gray-700 rounded-t-xl px-6 py-3 text-white shadow-lg">
+        Zone 2
+      </div> */}
     </div>
   );
 }
