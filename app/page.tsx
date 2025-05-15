@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, Plus, Minus, Thermometer, Droplets, Wind, CloudRain, Activity, Flame } from 'lucide-react';
 import type { Map as LeafletMap, GeoJSON, Path, GeoJSON as LeafletGeoJSON } from 'leaflet';
+import L from 'leaflet';
 import { startDataSimulation } from './data';
 
 type DisasterType = 'none' | 'seisme' | 'inondation' | 'both';
@@ -89,8 +90,6 @@ export default function Home() {
     // Fonction pour initialiser la carte
     const initializeMap = async () => {
       try {
-        const L = await import('leaflet');
-        
         if (typeof window !== 'undefined' && !map) {
           // S'assurer que le conteneur de carte existe
           const mapContainer = document.getElementById('map');
@@ -239,12 +238,7 @@ export default function Home() {
                 opacity: 0.8
               });
             },
-            mouseout: (e: { target: LeafletGeoJSON }) => {
-              const layer = e.target;
-              const district = districts.find(d => d.id === parseInt(arrondNumber, 10));
-              const style = getLeafletStyle(district?.disaster || DISASTER_TYPES.NONE, district?.zone || 0);
-              layer.setStyle(style);
-            },
+          
             click: (e: { target: LeafletGeoJSON }) => {
               const bounds = (e.target as any).getBounds();
               if (bounds) {
@@ -471,6 +465,27 @@ export default function Home() {
                   title="Dézoomer"
                 >
                   <Minus size={20} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (map) {
+                      const allLayers = Object.values(arrondissements)
+                        .map(a => a.layer)
+                        .filter((layer): layer is Path => layer !== null);
+                      if (allLayers.length > 0) {
+                        const group = L.featureGroup(allLayers);
+                        map.fitBounds(group.getBounds());
+                      }
+                    }
+                  }}
+                  className="w-6 h-6 bg-white hover:bg-gray-100 rounded-md flex items-center justify-center text-gray-800 shadow-lg border border-gray-200"
+                  title="Vue d'ensemble"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="3" y1="9" x2="21" y2="9"/>
+                    <line x1="9" y1="21" x2="9" y2="9"/>
+                  </svg>
                 </button>
               </div>
             </div>
