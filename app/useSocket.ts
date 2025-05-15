@@ -5,6 +5,7 @@ export const useSocket = () => {
     const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
+    console.log('useSocket')
     socketRef.current = io('ws://localhost:3001')
 
     return () => {
