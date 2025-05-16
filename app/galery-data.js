@@ -100,7 +100,7 @@ export const demoData = {
           "Quand tout s’écroule, construis ta forteresse moelleuse anti-vibrations. Confort et fun garantis !",
         href: "#",
         image:
-          "/coussins.jpg",
+          "/coussin.jpg",
       },
     ],
   };

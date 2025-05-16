@@ -21,7 +21,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={jetBrains.className}>{children}</body>
+      <body className={jetBrains.className + " overflow-x-hidden"}>
+        {children}
+      </body>
     </html>
   );
 }
